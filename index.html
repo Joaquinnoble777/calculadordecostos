@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
   <div class="container py-5">
@@ -13,7 +14,7 @@
       <div class="card-body">
         <h2 class="card-title text-center mb-4">Gestión de Productos y Ganancias</h2>
 
-        <!-- Formulario -->
+        <!-- Formulario de productos -->
         <form id="productForm" class="row g-3">
           <div class="col-md-3">
             <input type="text" class="form-control" id="name" placeholder="Nombre del producto" required>
@@ -35,6 +36,30 @@
           </div>
         </form>
 
+        <!-- Sección de Calculadora de Inversión -->
+        <div class="alert alert-warning mt-4">
+          <h4>Calculadora de Inversión</h4>
+          <form id="investmentForm" class="row g-3">
+            <div class="col-md-3">
+              <input type="number" class="form-control" id="investmentAmount" placeholder="Monto a invertir ($)" required>
+            </div>
+            <div class="col-md-3">
+              <input type="number" class="form-control" id="investmentCost" placeholder="Costo por unidad ($)" required>
+            </div>
+            <div class="col-md-3">
+              <input type="number" class="form-control" id="investmentPrice" placeholder="Precio de venta ($)" required>
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-primary w-100">Calcular Ganancias</button>
+            </div>
+          </form>
+          <div class="mt-3">
+            <h5>Resultados:</h5>
+            <p id="unitsToBuy">Unidades a comprar: 0</p>
+            <p id="investmentProfit">Ganancia estimada: $0.00</p>
+          </div>
+        </div>
+
         <!-- Resumen de Ganancias Adaptable -->
         <div class="alert alert-info mt-3">
           <div class="row text-center text-md-start">
@@ -52,6 +77,7 @@
           <button class="btn btn-primary" onclick="exportToExcel()">Exportar a Excel</button>
         </div>
 
+        <!-- Tabla de productos -->
         <div class="table-responsive">
           <table class="table table-bordered table-hover align-middle text-center">
             <thead class="table-dark">
@@ -78,6 +104,12 @@
             </tfoot>
           </table>
         </div>
+
+        <!-- Gráfico de Resumen de Ganancias -->
+        <div class="mt-4">
+          <h4>Resumen de Ganancias por Producto</h4>
+          <canvas id="profitChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
@@ -89,6 +121,14 @@
     const totalPriceEl = document.getElementById('totalPrice');
     const totalProfitEl = document.getElementById('totalProfit');
     const searchInput = document.getElementById('search');
+    const investmentForm = document.getElementById('investmentForm');
+    const investmentAmount = document.getElementById('investmentAmount');
+    const investmentCost = document.getElementById('investmentCost');
+    const investmentPrice = document.getElementById('investmentPrice');
+    const unitsToBuyEl = document.getElementById('unitsToBuy');
+    const investmentProfitEl = document.getElementById('investmentProfit');
+    const summaryQuantityEl = document.getElementById('summaryQuantity');
+    const summaryProfitEl = document.getElementById('summaryProfit');
 
     let products = JSON.parse(localStorage.getItem('products')) || [];
 
@@ -129,9 +169,10 @@
       totalCostEl.textContent = `$${totalCost.toFixed(2)}`;
       totalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
       totalProfitEl.textContent = `$${totalProfit.toFixed(2)}`;
+      summaryProfitEl.textContent = `$${totalProfit.toFixed(2)}`;
+      summaryQuantityEl.textContent = totalQuantity;
 
-      document.getElementById('summaryProfit').textContent = `$${totalProfit.toFixed(2)}`;
-      document.getElementById('summaryQuantity').textContent = totalQuantity;
+      updateChart();
     }
 
     function removeProduct(index) {
@@ -160,6 +201,23 @@
       updateTable(searchInput.value);
     });
 
+    investmentForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const investment = parseFloat(investmentAmount.value);
+      const cost = parseFloat(investmentCost.value);
+      const price = parseFloat(investmentPrice.value);
+
+      if (!isNaN(investment) && !isNaN(cost) && !isNaN(price) && investment > 0 && cost > 0 && price > 0) {
+        const unitsToBuy = Math.floor(investment / cost);
+        const profitPerUnit = price - cost;
+        const totalProfit = unitsToBuy * profitPerUnit;
+
+        unitsToBuyEl.textContent = `Unidades a comprar: ${unitsToBuy}`;
+        investmentProfitEl.textContent = `Ganancia estimada: $${totalProfit.toFixed(2)}`;
+      }
+    });
+
     function exportToExcel() {
       const data = products.map(prod => {
         const profit = (prod.price - prod.cost) * prod.quantity;
@@ -178,6 +236,26 @@
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Productos");
       XLSX.writeFile(wb, "productos.xlsx");
+    }
+
+    function updateChart() {
+      const labels = products.map(prod => prod.name);
+      const profits = products.map(prod => (prod.price - prod.cost) * prod.quantity);
+
+      const ctx = document.getElementById('profitChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Ganancia por Producto',
+            data: profits,
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+          }]
+        }
+      });
     }
 
     // Inicializar
