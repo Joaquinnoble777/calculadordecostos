@@ -37,6 +37,9 @@
         <div class="text-end mt-3">
           <button class="btn btn-primary" onclick="exportToExcel()">Exportar a Excel</button>
         </div>
+        <!-- Resumen de Ganancias -->
+
+
         <hr class="my-4">
         <!-- Tabla -->
         <div class="table-responsive">
@@ -44,8 +47,8 @@
             <thead class="table-dark">
               <tr>
                 <th>Producto</th>
-                <th>Costo ($)</th>
-                <th>Precio ($)</th>
+                <th>Compro a</th>
+                <th>Vendo a</th>
                 <th>Vendidos</th>
                 <th>Ganancia ($)</th>
                 <th>%</th>
@@ -148,6 +151,10 @@
     }
     // Inicializar
     updateTable();
+
+    document.getElementById('summaryProfit').textContent = `$${totalProfit.toFixed(2)}`;
+    totalProfitEl.textContent = `$${totalProfit.toFixed(2)}`;
+
   </script>
 </body>
 </html>
