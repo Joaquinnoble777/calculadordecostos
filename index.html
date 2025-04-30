@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <meta charset="UTF-8">
+  <title>Gestión de Productos</title>
+  <link href="https://cdn.jsdelivr.net/.../dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xls.../package/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <div class="card shadow rounded-4">
+      <div class="card-body">
+        <h2 class="card-title text-center mb-4">Gestión de Productos y Ganancias</h2>
+        <!-- Formulario -->
+        <form id="productForm" class="row g-3">
+          <div class="col-md-3">
+            <input type="text" class="form-control" id="name" placeholder="Nombre del producto" required>
+          </div>
+          <div class="col-md-2">
+            <input type="number" class="form-control" id="cost" placeholder="Costo ($)" required>
+          </div>
+          <div class="col-md-2">
+            <input type="number" class="form-control" id="price" placeholder="Precio ($)" required>
+          </div>
+          <div class="col-md-1">
+            <input type="number" class="form-control" id="quantity" placeholder="Cant." min="1" value="1" required>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-success w-100">Agregar</button>
+          </div>
+          <div class="col-md-2">
+            <input type="text" class="form-control" id="search" placeholder="Buscar producto...">
+          </div>
+        </form>
+        <!-- Botón exportar -->
+        <div class="text-end mt-3">
+          <button class="btn btn-primary" onclick="exportToExcel()">Exportar a Excel</button>
+        </div>
+        <hr class="my-4">
+        <!-- Tabla -->
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle text-center">
+            <thead class="table-dark">
+              <tr>
+                <th>Producto</th>
+                <th>Costo ($)</th>
+                <th>Precio ($)</th>
+                <th>Vendidos</th>
+                <th>Ganancia ($)</th>
+                <th>%</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="productTableBody"></tbody>
+            <tfoot class="table-secondary fw-bold">
+              <tr>
+                <td>Totales</td>
+                <td id="totalCost">$0.00</td>
+                <td id="totalPrice">$0.00</td>
+                <td></td>
+                <td id="totalProfit" class="text-success">$0.00</td>
+                <td colspan="2" class="text-muted">Ganancia total de todos los productos vendidos</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const productForm = document.getElementById('productForm');
+    const productTableBody = document.getElementById('productTableBody');
+    const totalCostEl = document.getElementById('totalCost');
+    const totalPriceEl = document.getElementById('totalPrice');
+    const totalProfitEl = document.getElementById('totalProfit');
+    const searchInput = document.getElementById('search');
+    let products = JSON.parse(localStorage.getItem('products')) || [];
+    function saveProducts() {
+      localStorage.setItem('products', JSON.stringify(products));
+    }
+    function updateTable(filter = "") {
+      productTableBody.innerHTML = "";
+      let totalCost = 0, totalPrice = 0, totalProfit = 0;
+      products.forEach((prod, index) => {
+        if (!prod.name.toLowerCase().includes(filter.toLowerCase())) return;
+        const profitPerItem = prod.price - prod.cost;
+        const profit = profitPerItem * prod.quantity;
+        const percentage = (profitPerItem / prod.cost) * 100;
+        totalCost += prod.cost * prod.quantity;
+        totalPrice += prod.price * prod.quantity;
+        totalProfit += profit;
+        const row = `
+          <tr>
+            <td>${prod.name}</td>
+            <td>$${prod.cost.toFixed(2)}</td>
+            <td>$${prod.price.toFixed(2)}</td>
+            <td>${prod.quantity}</td>
+            <td class="text-success fw-bold">$${profit.toFixed(2)}</td>
+            <td>${isFinite(percentage) ? percentage.toFixed(1) + "%" : "N/A"}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="removeProduct(${index})">Eliminar</button></td>
+          </tr>
+        `;
+        productTableBody.innerHTML += row;
+      });
+      totalCostEl.textContent = `$${totalCost.toFixed(2)}`;
+      totalPriceEl.textContent = `$${totalPrice.toFixed(2)}`;
+      totalProfitEl.textContent = `$${totalProfit.toFixed(2)}`;
+    }
+    function removeProduct(index) {
+      products.splice(index, 1);
+      saveProducts();
+      updateTable(searchInput.value);
+    }
+    productForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const cost = parseFloat(document.getElementById('cost').value);
+      const price = parseFloat(document.getElementById('price').value);
+      const quantity = parseInt(document.getElementById('quantity').value);
+      if (name && !isNaN(cost) && !isNaN(price) && !isNaN(quantity) && quantity > 0) {
+        products.push({ name, cost, price, quantity });
+        saveProducts();
+        productForm.reset();
+        updateTable(searchInput.value);
+      }
+    });
+    searchInput.addEventListener('input', () => {
+      updateTable(searchInput.value);
+    });
+    function exportToExcel() {
+      const data = products.map(prod => {
+        const profit = (prod.price - prod.cost) * prod.quantity;
+        const percentage = ((prod.price - prod.cost) / prod.cost) * 100;
+        return {
+          Producto: prod.name,
+          Costo: prod.cost,
+          Precio: prod.price,
+          Vendidos: prod.quantity,
+          Ganancia: profit.toFixed(2),
+          Porcentaje: isFinite(percentage) ? percentage.toFixed(1) + "%" : "N/A"
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Productos");
+      XLSX.writeFile(wb, "productos.xlsx");
+    }
+    // Inicializar
+    updateTable();
+  </script>
+</body>
+</html>
